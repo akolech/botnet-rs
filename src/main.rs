@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, oneshot};
@@ -10,15 +11,6 @@ type MakeRequestResult = bool;
 struct MakeRequestMeasures {
     result: MakeRequestResult,
     delta: u64,
-}
-
-struct Monkey {
-    sequence_number: u32,
-}
-impl Monkey {
-    fn new(sequence_number: u32) -> Self {
-        Monkey { sequence_number }
-    }
 }
 
 async fn generate_resouces(pool: Arc<Mutex<u8>>) {
@@ -62,38 +54,32 @@ async fn make_request_measured(
 }
 
 async fn make_monkey_work(
-    monkey: Monkey,
     mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>,
     failing: &AtomicBool,
 ) {
-    let sequence_number = monkey.sequence_number;
     loop {
         sleep(Duration::from_secs(1)).await;
         let report = make_request_measured(mpsc_tx.clone()).await;
         if !report.result {
             failing.store(true, Ordering::Relaxed);
         }
-        println!("Monkey sequence number {sequence_number} report: {report:?}",)
     }
 }
 
-#[tokio::main]
-async fn main() {
+async fn determine_throughput() {
     let (tx, rx) = mpsc::channel::<oneshot::Sender<bool>>(32);
     let _ = tokio::spawn(async move { process_request(rx).await });
     let mut handles = vec![];
 
     let failing = Arc::new(AtomicBool::new(false));
     let mut stop = false;
-
     loop {
-        let monkey = Monkey::new(42);
         let mpsc_tx = tx.clone();
         let failing_arc = Arc::clone(&failing);
 
         if !stop {
             handles.push(tokio::spawn(async move {
-                make_monkey_work(monkey, mpsc_tx, &failing_arc).await
+                make_monkey_work(mpsc_tx, &failing_arc).await
             }));
         }
 
@@ -108,8 +94,13 @@ async fn main() {
 
         println!("handles_count = {}", handles.len());
     }
+}
 
-    // loop {
-    //     sleep(Duration::from_secs(60)).await;
-    // }
+#[tokio::main]
+async fn main() {
+    determine_throughput().await;
+
+    loop {
+        sleep(Duration::from_secs(60)).await;
+    }
 }
