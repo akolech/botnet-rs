@@ -1,5 +1,3 @@
-use rand::prelude::*;
-use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, oneshot};
@@ -10,7 +8,7 @@ type MakeRequestResult = bool;
 #[derive(Debug)]
 struct MakeRequestMeasures {
     result: MakeRequestResult,
-    delta: u64,
+    _delta: u64,
 }
 
 async fn generate_resouces(pool: Arc<Mutex<u8>>) {
@@ -50,7 +48,7 @@ async fn make_request_measured(
     let result = make_request(mpsc_tx).await;
     let after = Instant::now();
     let delta = (after - before).as_secs();
-    MakeRequestMeasures { result, delta }
+    MakeRequestMeasures { result, _delta: delta }
 }
 
 async fn make_monkey_work(
