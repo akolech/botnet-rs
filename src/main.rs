@@ -1,15 +1,15 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{sleep, Duration};
 
 type MakeRequestResult = bool;
 
-#[derive(Debug)]
-struct MakeRequestMeasures {
-    result: MakeRequestResult,
-    _delta: u64,
-}
+// #[derive(Debug)]
+// struct MakeRequestMeasures {
+//     result: MakeRequestResult,
+//     delta: u64,
+// }
 
 async fn generate_resouces(pool: Arc<Mutex<u8>>) {
     loop {
@@ -41,24 +41,21 @@ async fn make_request(mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>) -> MakeReque
     oneshot_rx.await.unwrap()
 }
 
-async fn make_request_measured(
-    mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>,
-) -> MakeRequestMeasures {
-    let before = Instant::now();
-    let result = make_request(mpsc_tx).await;
-    let after = Instant::now();
-    let delta = (after - before).as_secs();
-    MakeRequestMeasures { result, _delta: delta }
-}
+// async fn make_request_measured(
+//     mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>,
+// ) -> MakeRequestMeasures {
+//     let before = Instant::now();
+//     let result = make_request(mpsc_tx).await;
+//     let after = Instant::now();
+//     let delta = (after - before).as_secs();
+//     MakeRequestMeasures { result, delta }
+// }
 
-async fn make_monkey_work(
-    mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>,
-    failing: &AtomicBool,
-) {
+async fn make_monkey_work(mpsc_tx: mpsc::Sender<oneshot::Sender<bool>>, failing: &AtomicBool) {
     loop {
         sleep(Duration::from_secs(1)).await;
-        let report = make_request_measured(mpsc_tx.clone()).await;
-        if !report.result {
+        let result = make_request(mpsc_tx.clone()).await;
+        if !result {
             failing.store(true, Ordering::Relaxed);
         }
     }
